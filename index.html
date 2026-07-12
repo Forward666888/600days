@@ -1,0 +1,612 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>✦ 我们的600天</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{overflow:hidden;background:#06080f;font-family:'PingFang SC','Microsoft YaHei',sans-serif;user-select:none}
+canvas{display:block}
+
+#loading{position:fixed;inset:0;z-index:100;display:flex;flex-direction:column;align-items:center;justify-content:center;background:#06080f;transition:opacity 1s}
+#loading.hidden{opacity:0;pointer-events:none}
+#loading h1{font-size:1.5rem;font-weight:200;letter-spacing:10px;color:rgba(255,255,255,.3);margin-bottom:20px;animation:loadGlow 2s ease-in-out infinite}
+@keyframes loadGlow{0%,100%{text-shadow:0 0 10px rgba(100,150,255,.1);opacity:.3}50%{text-shadow:0 0 30px rgba(100,150,255,.3),0 0 60px rgba(100,150,255,.1);opacity:.7}}
+#loading .dot{width:6px;height:6px;background:rgba(255,255,255,.3);border-radius:50%;animation:pulse 1.2s ease-in-out infinite}
+@keyframes pulse{0%,100%{opacity:.2;transform:scale(1)}50%{opacity:1;transform:scale(1.5)}}
+
+#ui{position:fixed;left:24px;top:20px;z-index:10;pointer-events:none;line-height:1.8}
+#ui .t{font-size:1rem;font-weight:300;letter-spacing:6px;color:rgba(255,255,255,.25);animation:titlePulse 4s ease-in-out infinite}
+@keyframes titlePulse{0%,100%{text-shadow:0 0 8px rgba(100,150,255,.08)}50%{text-shadow:0 0 24px rgba(100,150,255,.25),0 0 48px rgba(100,150,255,.08)}}
+#ui .s{font-size:.65rem;letter-spacing:4px;color:rgba(255,255,255,.1)}
+#ui .c{position:fixed;right:24px;top:22px;font-size:.7rem;letter-spacing:3px;color:rgba(255,255,255,.12)}
+
+#hint{position:fixed;bottom:24px;left:50%;transform:translateX(-50%);z-index:10;font-size:.7rem;letter-spacing:6px;color:rgba(255,255,255,.08);pointer-events:none;animation:hintPulse 3s ease-in-out infinite}
+@keyframes hintPulse{0%,100%{opacity:.06}50%{opacity:.14}}
+
+/* ===== 音乐控制 ===== */
+#music-btn{position:fixed;right:24px;bottom:24px;z-index:20;width:44px;height:44px;border-radius:50%;border:1.5px solid rgba(255,255,255,.15);background:rgba(6,8,15,.6);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);color:rgba(255,255,255,.35);font-size:18px;cursor:pointer;transition:all .4s;display:flex;align-items:center;justify-content:center;pointer-events:auto}
+#music-btn:hover{border-color:rgba(255,255,255,.3);color:rgba(255,255,255,.6);transform:scale(1.08)}
+#music-btn.playing{color:rgba(180,200,255,.7);border-color:rgba(180,200,255,.3);box-shadow:0 0 18px rgba(100,150,255,.15)}
+#music-btn .spin{animation:musicSpin 3s linear infinite}
+@keyframes musicSpin{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}
+@keyframes musicPulse{0%,100%{opacity:.3;transform:scale(1)}50%{opacity:.7;transform:scale(1.12)}}
+#music-btn.playing .note-icon{animation:musicPulse 2s ease-in-out infinite;display:inline-block}
+
+/* ===== 拍立得查看器 ===== */
+#view{position:fixed;inset:0;z-index:50;display:none;align-items:center;justify-content:center;background:rgba(6,8,15,.88);backdrop-filter:blur(60px);-webkit-backdrop-filter:blur(60px);cursor:pointer}
+#view.show{display:flex}
+#view .polaroid{position:relative;background:#fff;padding:18px 18px 48px 18px;border-radius:4px;box-shadow:0 24px 80px rgba(0,0,0,.7),0 4px 20px rgba(0,0,0,.3);animation:rise .5s cubic-bezier(.22,1,.36,1);cursor:default;max-width:88vw;max-height:92vh;display:flex;flex-direction:column;align-items:center}
+#view .polaroid-img-wrap{flex-shrink:1;min-height:0;display:flex;align-items:center;justify-content:center;width:100%}
+#view .polaroid-img-wrap img{display:block;max-width:76vw;max-height:68vh;width:auto;height:auto;object-fit:contain;background:#e8e8e8}
+#view .polaroid-cap{flex-shrink:0;width:100%;min-height:36px;display:flex;align-items:center;justify-content:center;padding:10px 10px 0;font-size:1rem;letter-spacing:3px;font-weight:300;color:#555;text-align:center;line-height:1.5;font-family:'KaiTi','STKaiti','楷体','PingFang SC','Microsoft YaHei',serif}
+#view .x{position:absolute;top:-14px;right:-14px;width:36px;height:36px;border:2px solid rgba(255,255,255,.3);border-radius:50%;background:rgba(0,0,0,.5);color:rgba(255,255,255,.7);font-size:16px;cursor:pointer;transition:all .3s;display:flex;align-items:center;justify-content:center;z-index:5;backdrop-filter:blur(8px)}
+#view .x:hover{background:rgba(255,80,80,.7);border-color:rgba(255,255,255,.6);color:#fff;transform:rotate(90deg)}
+
+@keyframes rise{from{opacity:0;transform:translateY(20px) scale(.96)}to{opacity:1;transform:translateY(0) scale(1)}}
+
+@media(max-width:700px){
+#ui{left:12px;top:12px}#ui .t{font-size:.85rem}#ui .c{right:12px;top:14px;font-size:.6rem}
+#view .polaroid{padding:12px 12px 38px 12px;max-width:94vw;max-height:90vh}
+#view .polaroid-img-wrap img{max-width:82vw;max-height:60vh}
+#view .polaroid-cap{font-size:.9rem;letter-spacing:2px;padding:8px 8px 0;min-height:30px}
+#view .x{top:-12px;right:-12px;width:30px;height:30px;font-size:14px}
+#hint{font-size:.6rem;bottom:10px;letter-spacing:4px}
+#music-btn{right:12px;bottom:12px;width:38px;height:38px;font-size:15px}
+}
+@media(max-width:420px){
+#ui .t{font-size:.75rem;letter-spacing:4px}
+#view .polaroid{padding:8px 8px 32px 8px}
+#view .polaroid-img-wrap img{max-width:86vw;max-height:52vh}
+#view .polaroid-cap{font-size:.8rem;letter-spacing:1px;min-height:26px}
+#music-btn{width:34px;height:34px;font-size:14px}
+}
+</style>
+</head>
+<body>
+
+<div id="loading"><h1>✦</h1><div class="dot"></div></div>
+
+<div id="ui">
+<div class="t">✦ 我们的600天</div>
+<div class="s">drag · click · zoom</div>
+<div class="c" id="count">0</div>
+</div>
+
+<div id="hint">◇ 拖拽旋转 ◇ 点击查看 ◇</div>
+
+<!-- 背景音乐 -->
+<audio id="bgm" loop preload="auto">
+  <source src="多远都要在一起..mp3" type="audio/mpeg">
+</audio>
+<button id="music-btn" onclick="toggleMusic()" title="♪ 背景音乐">
+  <span class="note-icon">♪</span>
+</button>
+
+<!-- 拍立得查看器 -->
+<div id="view" onclick="cView()">
+<div class="polaroid" onclick="event.stopPropagation()">
+<button class="x" onclick="cView()">✕</button>
+<div class="polaroid-img-wrap">
+<img id="vi" src="" alt=""/>
+</div>
+<div class="polaroid-cap" id="vc"></div>
+</div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+// ===== 照片数据 — 直接引用本地图片文件 =====
+const PHOTO_DATA = [
+  {file:"99天啦，不懂吵了多少架.jpg",caption:"99天啦，不懂吵了多少架"},
+  {file:"wk，这个照片两个人的五官好像，吓尿了.jpg",caption:"wk，这个照片两个人的五官好像，吓尿了"},
+  {file:"一起登上了姑婆山.jpg",caption:"一起登上了姑婆山"},
+  {file:"他不搞乱的时候还挺好看的.jpg",caption:"他不搞乱的时候还挺好看的"},
+  {file:"他好能闹....jpg",caption:"他好能闹"},
+  {file:"偷穿我的衣服.jpg",caption:"偷穿我的衣服"},
+  {file:"傻傻的.jpg",caption:"傻傻的"},
+  {file:"傻福，能不能好好拍，.jpg",caption:"傻福，能不能好好拍，"},
+  {file:"去哪闹到哪.jpg",caption:"去哪闹到哪"},
+  {file:"哎呦第二次见面的时候还蛮在意形象的.jpg",caption:"哎呦第二次见面的时候还蛮在意形象的"},
+  {file:"哎呦，又亲....jpg",caption:"哎呦，又亲"},
+  {file:"哎呦，还特意做造型来见我.jpg",caption:"哎呦，还特意做造型来见我"},
+  {file:"嘿嘿，这个也好看.jpg",caption:"嘿嘿，这个也好看"},
+  {file:"异地恋的战利品.jpg",caption:"异地恋的战利品"},
+  {file:"我们的520蛋糕！这次的蛋糕终于是和好朋友们一起吃了.jpg",caption:"我们的520蛋糕！这次的蛋糕终于是和好朋友们一起吃了"},
+  {file:"我好看他随便.jpg",caption:"我好看他随便"},
+  {file:"我的脱单蛋糕.jpg",caption:"我的脱单蛋糕"},
+  {file:"最喜欢的合照.jpg",caption:"最喜欢的合照"},
+  {file:"柳州的马鞍山.jpg",caption:"柳州的马鞍山"},
+  {file:"每次拍照不是弄这就是弄那.jpg",caption:"每次拍照不是弄这就是弄那"},
+  {file:"每次见面都是他出钱.jpg",caption:"每次见面都是他出钱"},
+  {file:"沙子杰送的手表，嘻嘻.jpg",caption:"沙子杰送的手表，嘻嘻"},
+  {file:"沙子杰，你愿意嫁给我吗？.jpg",caption:"沙子杰，你愿意嫁给我吗？"},
+  {file:"火火恍恍惚惚火火恍恍惚惚.jpg",caption:"火火恍恍惚惚火火恍恍惚惚"},
+  {file:"真的很想哪一个记录仪拍下我们见面的每分每秒，真的.jpg",caption:"真的很想哪一个记录仪拍下我们见面的每分每秒，真的"},
+  {file:"第一对戒指.jpg",caption:"第一对戒指"},
+  {file:"第一次一起看日出日落.jpg",caption:"第一次一起看日出日落"},
+  {file:"约好的一年一张正式的照片（为啥他脸那么小！）.jpg",caption:"约好的一年一张正式的照片（为啥他脸那么小！）"},
+  {file:"终于有一张正常的合照了，哈哈哈哈哈哈哈哈哈哈哈.jpg",caption:"终于有一张正常的合照了，哈哈哈哈哈哈哈哈哈哈哈"},
+  {file:"老想亲亲.jpg",caption:"老想亲亲"},
+  {file:"老想趁我蹲下盘我头发.jpg",caption:"老想趁我蹲下盘我头发"},
+  {file:"自己都冻成🐕了还要开车送我回镇上.jpg",caption:"自己都冻成🐕了还要开车送我回镇上"},
+  {file:"谁的拍照技术.jpg",caption:"谁的拍照技术"},
+  {file:"谈恋爱后第一次牵手.jpg",caption:"谈恋爱后第一次牵手"},
+  {file:"谈恋爱后第一次见面..jpg",caption:"谈恋爱后第一次见面"},
+  {file:"跟他去球场，我就在旁边吃好吃的看他打.jpg",caption:"跟他去球场，我就在旁边吃好吃的看他打"},
+  {file:"陪他打完球打完球又能吃上好吃的.jpg",caption:"陪他打完球打完球又能吃上好吃的"},
+  {file:"隔那么远，也还是会开个电车来我的镇上陪我吃宵夜.jpg",caption:"隔那么远，也还是会开个电车来我的镇上陪我吃宵夜"},
+];
+
+// 中文文件名编码
+function imgUrl(f){return encodeURI(f)}
+
+const PHOTOS = PHOTO_DATA.map(p => ({ src: imgUrl(p.file), file: p.file, caption: p.caption }));
+
+const S = new THREE.Scene();
+S.background = new THREE.Color(0x06080f);
+
+const C = new THREE.PerspectiveCamera(50,innerWidth/innerHeight,.1,200);
+C.position.set(0,.5,16);
+
+const R = new THREE.WebGLRenderer({antialias:true,alpha:true});
+R.setSize(innerWidth,innerHeight);
+R.setPixelRatio(Math.min(devicePixelRatio,1.5));
+R.shadowMap.enabled = false;
+R.toneMapping = THREE.ACESFilmicToneMapping;
+R.toneMappingExposure = 0.9;
+R.outputEncoding = THREE.sRGBEncoding;
+document.body.prepend(R.domElement);
+
+S.fog = new THREE.FogExp2(0x06080f, .004);
+
+S.add(new THREE.AmbientLight(0x445577,.9));
+const k = new THREE.DirectionalLight(0xffeedd,1.6); k.position.set(4,6,5); S.add(k);
+const f = new THREE.DirectionalLight(0x8899ff,.8); f.position.set(-4,2,-5); S.add(f);
+const b = new THREE.DirectionalLight(0x99aadd,.5); b.position.set(0,-4,-10); S.add(b);
+const p = new THREE.PointLight(0xaaccff,.6,20); p.position.set(0,4,0); S.add(p);
+
+// ===== 星辰大海 — 增强多层星空 =====
+const shootingStars=[];
+const twinkleStarGroups=[];
+const floatOrbs=[];
+
+// 1. 外层远星 — 近万颗彩色星点
+(()=>{
+    const n=10000,g=new THREE.BufferGeometry();
+    const pos=new Float32Array(n*3);
+    const col=new Float32Array(n*3);
+    for(let i=0;i<n;i++){
+        const r=20+Math.random()*100;
+        const t=Math.random()*Math.PI*2,ph=Math.acos(2*Math.random()-1);
+        pos[i*3]=r*Math.sin(ph)*Math.cos(t);
+        pos[i*3+1]=r*Math.cos(ph)*0.12;
+        pos[i*3+2]=r*Math.sin(ph)*Math.sin(t);
+        const ct=Math.random();
+        if(ct<0.55){ // 冷白
+            const b=0.6+Math.random()*0.4;
+            col[i*3]=0.6+Math.random()*0.3;col[i*3+1]=0.7+Math.random()*0.3;col[i*3+2]=b;
+        }else if(ct<0.8){ // 暖金
+            col[i*3]=1;col[i*3+1]=0.7+Math.random()*0.3;col[i*3+2]=0.3+Math.random()*0.2;
+        }else{ // 淡紫
+            col[i*3]=0.8+Math.random()*0.2;col[i*3+1]=0.5+Math.random()*0.2;col[i*3+2]=0.9+Math.random()*0.1;
+        }
+    }
+    g.setAttribute('position',new THREE.BufferAttribute(pos,3));
+    g.setAttribute('color',new THREE.BufferAttribute(col,3));
+    const m=new THREE.PointsMaterial({size:.03,transparent:true,opacity:.4,blending:THREE.AdditiveBlending,depthWrite:false,sizeAttenuation:true,vertexColors:true});
+    S.add(new THREE.Points(g,m));
+})();
+
+// 2. 中层暖星
+(()=>{
+    const n=3000,g=new THREE.BufferGeometry();
+    const pos=new Float32Array(n*3);
+    for(let i=0;i<n;i++){
+        const r=8+Math.random()*45;
+        const t=Math.random()*Math.PI*2,ph=Math.acos(2*Math.random()-1);
+        pos[i*3]=r*Math.sin(ph)*Math.cos(t);
+        pos[i*3+1]=r*Math.cos(ph)*0.2;
+        pos[i*3+2]=r*Math.sin(ph)*Math.sin(t);
+    }
+    g.setAttribute('position',new THREE.BufferAttribute(pos,3));
+    const m=new THREE.PointsMaterial({color:0xffdd99,size:.05,transparent:true,opacity:.3,blending:THREE.AdditiveBlending,depthWrite:false,sizeAttenuation:true});
+    const f=new THREE.Points(g,m);f.userData={layer:'mid'};S.add(f);
+})();
+
+// 3. 内圈闪烁大星 — 呼吸般脉动
+(()=>{
+    const n=500,g=new THREE.BufferGeometry();
+    const pos=new Float32Array(n*3);
+    for(let i=0;i<n;i++){
+        const r=4+Math.random()*18;
+        const t=Math.random()*Math.PI*2,ph=Math.acos(2*Math.random()-1);
+        pos[i*3]=r*Math.sin(ph)*Math.cos(t);
+        pos[i*3+1]=r*Math.cos(ph)*0.5;
+        pos[i*3+2]=r*Math.sin(ph)*Math.sin(t);
+    }
+    g.setAttribute('position',new THREE.BufferAttribute(pos,3));
+    const m=new THREE.PointsMaterial({color:0xffffff,size:.1,transparent:true,opacity:.5,blending:THREE.AdditiveBlending,depthWrite:false,sizeAttenuation:true});
+    const f=new THREE.Points(g,m);f.userData={layer:'big',phase:Math.random()*Math.PI*2};
+    S.add(f);twinkleStarGroups.push(f);
+})();
+
+// 4. 心形星座 — 远处星光组成的爱心
+(()=>{
+    const n=200,g=new THREE.BufferGeometry();
+    const pos=new Float32Array(n*3);
+    for(let i=0;i<n;i++){
+        const t=Math.random()*Math.PI*2;
+        const x=16*Math.pow(Math.sin(t),3);
+        const y=13*Math.cos(t)-5*Math.cos(2*t)-2*Math.cos(3*t)-Math.cos(4*t);
+        pos[i*3]=x*0.06+(Math.random()-0.5)*0.5-0.3;
+        pos[i*3+1]=y*0.06+(Math.random()-0.5)*0.5+0.3;
+        pos[i*3+2]=(Math.random()-0.5)*0.8-12;
+    }
+    g.setAttribute('position',new THREE.BufferAttribute(pos,3));
+    const m=new THREE.PointsMaterial({color:0xff6b9d,size:.08,transparent:true,opacity:.3,blending:THREE.AdditiveBlending,depthWrite:false,sizeAttenuation:true});
+    const f=new THREE.Points(g,m);f.userData={layer:'heart'};S.add(f);
+})();
+
+// ===== 流星系统 =====
+function spawnShootingStar(){
+    const segs=18;
+    const g=new THREE.BufferGeometry();
+    const pos=new Float32Array(segs*3);
+    g.setAttribute('position',new THREE.BufferAttribute(pos,3));
+    const m=new THREE.PointsMaterial({
+        color:0xffffff,size:.05,transparent:true,opacity:.8,
+        blending:THREE.AdditiveBlending,depthWrite:false,sizeAttenuation:true
+    });
+    const star=new THREE.Points(g,m);
+    const a=Math.random()*Math.PI*2,e=Math.random()*0.35-0.1;
+    star.userData={
+        pos:new THREE.Vector3((Math.random()-0.5)*35,3+Math.random()*8,-8-Math.random()*25),
+        dir:new THREE.Vector3(Math.cos(a)*Math.cos(e),Math.sin(e),Math.sin(a)*Math.cos(e)),
+        speed:0.03+Math.random()*0.05,life:0,maxLife:25+Math.random()*35,segs
+    };
+    star.position.copy(star.userData.pos);
+    star.visible=false;S.add(star);shootingStars.push(star);
+}
+for(let i=0;i<4;i++)spawnShootingStar();
+
+// ===== 漂浮光球 =====
+(()=>{
+    const hues=[0xff9ec4,0xffd699,0x99ccff,0xd4a5ff,0xa5ffd4];
+    for(let i=0;i<35;i++){
+        const g=new THREE.BufferGeometry();
+        const p=new Float32Array(3);p[0]=0;p[1]=0;p[2]=0;
+        g.setAttribute('position',new THREE.BufferAttribute(p,3));
+        const m=new THREE.PointsMaterial({
+            color:hues[i%hues.length],size:.08+Math.random()*.1,
+            transparent:true,opacity:.1+Math.random()*.15,
+            blending:THREE.AdditiveBlending,depthWrite:false,sizeAttenuation:true
+        });
+        const orb=new THREE.Points(g,m);
+        const ang=Math.random()*Math.PI*2,rad=2+Math.random()*3.8;
+        orb.userData={
+            angle:ang,radius:rad,height:(Math.random()-0.5)*2.8,
+            phase:Math.random()*Math.PI*2,rotSpeed:.002+Math.random()*.004,
+            bobSpeed:.003+Math.random()*.005,bobAmount:.15+Math.random()*.3
+        };
+        orb.position.set(Math.cos(ang)*rad,orb.userData.height,Math.sin(ang)*rad);
+        S.add(orb);floatOrbs.push(orb);
+    }
+})();
+
+// ===== 星云光晕 =====
+(()=>{
+    function mk(r,gc,b,a,s){
+        const c=document.createElement('canvas');c.width=512;c.height=512;
+        const x=c.getContext('2d');
+        const gr=x.createRadialGradient(256,256,0,256,256,256);
+        gr.addColorStop(0,'rgba('+r+','+gc+','+b+','+a+')');
+        gr.addColorStop(.4,'rgba('+(r*.6|0)+','+(gc*.4|0)+','+(b*.5|0)+','+a*.4+')');
+        gr.addColorStop(1,'rgba(0,0,0,0)');
+        x.fillStyle=gr;x.fillRect(0,0,512,512);
+        const t=new THREE.CanvasTexture(c);
+        const sp=new THREE.Sprite(new THREE.SpriteMaterial({map:t,transparent:true,blending:THREE.AdditiveBlending,depthWrite:false}));
+        sp.scale.set(s,s,1);return sp;
+    }
+    S.add(mk(120,160,255,.06,45));
+    S.add(mk(255,180,120,.04,35));
+})();
+
+const G=[],T=[],LD=new THREE.TextureLoader();
+
+// 加载纹理 — 使用 Three.js 标准 TextureLoader（HTTP 服务器上无 CORS 问题）
+function loadTex(url,i){
+    return new Promise((res,rej)=>{
+        LD.load(url,
+            tex=>{
+                tex.encoding=THREE.sRGBEncoding;
+                console.log('✓ tex loaded:',i,url.slice(0,30));
+                res(tex);
+            },
+            undefined,
+            ()=>{console.warn('✗ tex fail:',i,url.slice(0,30));rej()}
+        );
+    });
+}
+
+function makeCard(w,h){
+    const g=new THREE.Group();
+    const cm=new THREE.MeshStandardMaterial({color:0x1a1a2e,roughness:.2,metalness:.1,emissive:0x4455aa,emissiveIntensity:.25});
+    const bg=new THREE.Mesh(new THREE.PlaneGeometry(w+.2,h+.2),cm);
+    bg.position.z=-.008;g.add(bg);
+    const sm=new THREE.MeshBasicMaterial({color:0x8899ff,transparent:true,opacity:.06,depthWrite:false});
+    const sh=new THREE.Mesh(new THREE.PlaneGeometry(w+.6,h+.4),sm);
+    sh.position.set(0,-.08,-.15);g.add(sh);
+    return g;
+}
+
+function loadPhoto(data,i){
+    return new Promise(res=>{
+        loadTex(data.src,i).then(tex=>{
+            tex.encoding=THREE.sRGBEncoding;
+            const a=tex.image.width/tex.image.height;
+            let w,h;
+            if(a>=1){w=1.5;h=w/a}else{h=1.2;w=h*a}
+            const mat=new THREE.MeshStandardMaterial({map:tex,roughness:.06,metalness:.01,side:THREE.DoubleSide});
+            const mesh=new THREE.Mesh(new THREE.PlaneGeometry(w,h),mat);
+            const card=makeCard(w,h);
+            card.add(mesh);
+            card.userData={i,caption:data.caption,src:data.src,file:data.file,mesh,isHovered:false};
+            T.push(card);G.push(card);
+            res(card);
+        },()=>{
+            const w=1.5,h=1.125;
+            const mat=new THREE.MeshStandardMaterial({color:0x224488,emissive:0x88bbff,emissiveIntensity:.6,roughness:.2,metalness:.3});
+            const mesh=new THREE.Mesh(new THREE.PlaneGeometry(w,h),mat);
+            const card=makeCard(w,h);
+            card.add(mesh);
+            card.userData={i,caption:data.caption,src:data.src,file:data.file,mesh,isHovered:false};
+            T.push(card);G.push(card);
+            res(card);
+        });
+    });
+}
+
+async function build(){
+    const n=PHOTOS.length;
+    document.getElementById('count').textContent=n+' PHS';
+    const items=[];
+    for(let i=0;i<PHOTOS.length;i+=6){
+        const batch=await Promise.all(PHOTOS.slice(i,i+6).map((p,j)=>loadPhoto(p,i+j)));
+        items.push(...batch);
+    }
+    const bands = 4;
+    items.forEach((g,i)=>{
+        const band = i % bands;
+        const posInBand = Math.floor(i / bands);
+        const totalInBand = Math.ceil(n / bands);
+        const t = posInBand / Math.max(1, totalInBand - 1);
+        const angle = t * Math.PI * 1.8 + band * 0.8;
+        const r = 1.2 + band * 1.1 + t * 0.8;
+        const x = Math.cos(angle + band * 0.3) * r;
+        const z = Math.sin(angle + band * 0.3) * r;
+        const y = (band - 1.5) * 0.6 + Math.sin(angle * 0.8) * 0.3;
+        g.position.set(x, y, z);
+        g.lookAt(0, y*0.3, 0);
+        g.rotation.z += (Math.random()-0.5)*0.03;
+        g.rotation.x += (Math.random()-0.5)*0.02;
+        const s = 0.55 + Math.random() * 0.4;
+        g.scale.set(s,s,s);
+        S.add(g);
+    });
+}
+
+// Interaction
+let drag=false,px=0,py=0;
+let auto=true,autoT=null;
+let th=0.3,ph=0.04,dist=16;
+const tg=new THREE.Vector3(0,0,0);
+const ray=new THREE.Raycaster();
+const ms=new THREE.Vector2();
+let ho=null;
+const cv=R.domElement;
+
+cv.addEventListener('mousedown',e=>{drag=true;px=e.clientX;py=e.clientY;sAuto()});
+window.addEventListener('mousemove',e=>{
+    if(drag){th-=(e.clientX-px)*.006;ph=Math.max(-.45,Math.min(.45,ph+(e.clientY-py)*.004));px=e.clientX;py=e.clientY}
+    ms.x=(e.clientX/innerWidth)*2-1;ms.y=-(e.clientY/innerHeight)*2+1;
+    if(!drag)hov();
+});
+window.addEventListener('mouseup',()=>{drag=false});
+
+cv.addEventListener('click',e=>{
+    if(drag)return;
+    ms.x=(e.clientX/innerWidth)*2-1;ms.y=-(e.clientY/innerHeight)*2+1;
+    ray.setFromCamera(ms,C);
+    const h=ray.intersectObjects(T,true);
+    if(h.length){let o=h[0].object;while(o.parent&&!T.includes(o))o=o.parent;if(T.includes(o)){if(ho&&ho!==o)hovSet(ho,false);openV(o.userData.file||o.userData.src,o.userData.caption)}}
+});
+
+cv.addEventListener('touchstart',e=>{if(e.touches.length===1){drag=true;px=e.touches[0].clientX;py=e.touches[0].clientY;sAuto();touchTap(e)}},{passive:true});
+cv.addEventListener('touchmove',e=>{if(e.touches.length===1&&drag){th-=(e.touches[0].clientX-px)*.006;ph=Math.max(-.45,Math.min(.45,ph+(e.touches[0].clientY-py)*.004));px=e.touches[0].clientX;py=e.touches[0].clientY}},{passive:true});
+cv.addEventListener('touchend',()=>{drag=false},{passive:true});
+
+cv.addEventListener('wheel',e=>{e.preventDefault();dist=Math.max(6,Math.min(28,dist+e.deltaY*.005));sAuto()},{passive:false});
+
+function sAuto(){if(auto){auto=false;clearTimeout(autoT);autoT=setTimeout(()=>{auto=true},4000)}}
+
+// 手机端触摸照片时提供视觉反馈
+function touchTap(e){
+    if(e.touches.length!==1)return;
+    const tx=(e.touches[0].clientX/innerWidth)*2-1;
+    const ty=-(e.touches[0].clientY/innerHeight)*2+1;
+    ray.setFromCamera(new THREE.Vector2(tx,ty),C);
+    const h=ray.intersectObjects(T,true);
+    if(h.length){let o=h[0].object;while(o.parent&&!T.includes(o))o=o.parent;if(T.includes(o)){if(ho&&ho!==o)hovSet(ho,false);hovSet(o,true);ho=o}}
+}
+
+function hov(){
+    ray.setFromCamera(ms,C);
+    const h=ray.intersectObjects(T,true);
+    let f=null;
+    if(h.length){let o=h[0].object;while(o.parent&&!T.includes(o))o=o.parent;if(T.includes(o))f=o}
+    if(f!==ho){if(ho)hovSet(ho,false);if(f)hovSet(f,true);ho=f;cv.style.cursor=f?'pointer':'default'}
+}
+
+function hovSet(g,a){
+    g.userData.isHovered=a;
+    const ts=a?1.12:1;
+    const st=performance.now(),ss=g.scale.x||1;
+    (function an(n){const t=Math.min((n-st)/200,1),e=1-Math.pow(1-t,3),s=ss+(ts-ss)*e;g.scale.set(s,s,s);if(t<1)requestAnimationFrame(an)})(st);
+    g.children.forEach(c=>{
+        if(c.isMesh&&c.material&&c.material.emissiveIntensity!==undefined)c.material.emissiveIntensity=a?.3:.05;
+        if(c.isMesh&&c.material&&c.material.opacity!==undefined&&c.material.color&&c.material.color.getHex()===0x000005)c.material.opacity=a?.25:.1;
+    });
+}
+
+// ===== 拍立得查看器 =====
+function openV(s,c){
+    document.getElementById('vi').src=imgUrl(s);
+    document.getElementById('vc').textContent=c||'✦';
+    document.getElementById('view').classList.add('show');
+    // 关闭后复原触屏的缩放效果
+    if(ho){hovSet(ho,false);ho=null}
+}
+function cView(){document.getElementById('view').classList.remove('show')}
+document.addEventListener('keydown',e=>{if(e.key==='Escape')cView()});
+window.addEventListener('resize',()=>{C.aspect=innerWidth/innerHeight;C.updateProjectionMatrix();R.setSize(innerWidth,innerHeight)});
+
+function upCam(){
+    if(auto)th+=.0015;
+    const x=Math.sin(th)*Math.cos(ph)*dist;
+    const y=Math.sin(ph)*dist+.1;
+    const z=Math.cos(th)*Math.cos(ph)*dist;
+    C.position.lerp(new THREE.Vector3(x,y,z),.04);
+    C.lookAt(tg);
+}
+
+function upPart(time){
+    // 星层各自旋转
+    S.children.forEach(c=>{
+        if(!c.isPoints||!c.userData||!c.userData.layer)return;
+        const l=c.userData.layer;
+        if(l==='far')c.rotation.y+=.00006;
+        else if(l==='mid')c.rotation.y+=.0001;
+        else if(l==='big')c.rotation.y+=.00015;
+        else if(l==='heart'){c.rotation.y+=.0004;c.position.y=.3+Math.sin(time*.0003)*.15;}
+    });
+    // 闪烁星脉动
+    twinkleStarGroups.forEach(g=>{
+        const p=g.userData.phase||0;
+        g.material.opacity=.25+.35*(.5+.5*Math.sin(time*.002+p));
+    });
+    // 流星
+    const spawnRate=.003;
+    shootingStars.forEach(s=>{
+        if(!s.visible&&Math.random()<spawnRate){
+            s.visible=true;s.userData.life=0;
+            const a=Math.random()*Math.PI*2,e=Math.random()*0.35-0.1;
+            s.userData.dir.set(Math.cos(a)*Math.cos(e),Math.sin(e),Math.sin(a)*Math.cos(e));
+            s.userData.pos.set((Math.random()-.5)*35,3+Math.random()*8,-8-Math.random()*25);
+            s.position.copy(s.userData.pos);
+            s.userData.speed=.03+Math.random()*.05;
+            s.userData.maxLife=25+Math.random()*35;
+            s.material.opacity=.8;s.material.size=.05;
+            return;
+        }
+        if(!s.visible)return;
+        const d=s.userData;d.life++;
+        if(d.life>d.maxLife){s.visible=false;return;}
+        s.position.add(d.dir.clone().multiplyScalar(d.speed));
+        const pos=s.geometry.attributes.position.array;
+        const tl=Math.min(d.speed*d.segs*.5,1.2);
+        for(let i=0;i<d.segs;i++){
+            const t=i/d.segs;
+            pos[i*3]=-t*tl*d.dir.x;
+            pos[i*3+1]=-t*tl*d.dir.y;
+            pos[i*3+2]=-t*tl*d.dir.z;
+        }
+        s.geometry.attributes.position.needsUpdate=true;
+        const lr=d.life/d.maxLife;
+        s.material.opacity=Math.max(0,1-lr*lr)*.7;
+        s.material.size=.05*(1-lr*.5);
+    });
+    // 光球漂浮
+    floatOrbs.forEach(o=>{
+        const d=o.userData;
+        d.angle+=d.rotSpeed;
+        o.position.x=Math.cos(d.angle)*d.radius;
+        o.position.z=Math.sin(d.angle)*d.radius;
+        o.position.y=d.height+Math.sin(time*d.bobSpeed+d.phase)*d.bobAmount;
+        o.material.opacity=.08+.15*(.5+.5*Math.sin(time*.001+d.phase));
+    });
+    // 原光动画
+    p.position.x=Math.sin(time*.00025)*3.5;
+    p.position.z=Math.cos(time*.00025)*3.5;
+}
+
+function an(time){
+    upPart(time);
+    upCam();
+    R.render(S,C);
+    requestAnimationFrame(an);
+}
+
+// 预加载首张纹理避免纹理加载的白屏
+loadTex(PHOTOS[0].src,0).then(()=>{
+    build().then(()=>{
+        document.getElementById('loading').classList.add('hidden');
+        an(performance.now());
+    });
+}).catch(()=>{
+    // 预加载失败仍然启动
+    build().then(()=>{
+        document.getElementById('loading').classList.add('hidden');
+        an(performance.now());
+    });
+});
+
+// ===== 背景音乐控制 =====
+let musicOn = false;
+const bgm = document.getElementById('bgm');
+const musicBtn = document.getElementById('music-btn');
+
+function toggleMusic(){
+    if(!musicOn){
+        bgm.play().then(()=>{
+            musicOn = true;
+            musicBtn.classList.add('playing');
+        }).catch(()=>{
+            // 如果src为空则提示
+            if(!bgm.getAttribute('src') || bgm.getAttribute('src') === ''){
+                const src = prompt('🎵 输入音频文件名：\n（放在网页同一文件夹下）', '');
+                if(src && src.trim()){
+                    bgm.src = src.trim();
+                    bgm.load();
+                    bgm.play().then(()=>{
+                        musicOn = true;
+                        musicBtn.classList.add('playing');
+                    }).catch(()=>{});
+                }
+            }
+        });
+    } else {
+        bgm.pause();
+        musicOn = false;
+        musicBtn.classList.remove('playing');
+    }
+}
+
+// 音量
+bgm.volume = 0.25;
+
+// 用户首次交互时尝试播放（兼容移动端的 touch 事件）
+function tryAutoPlay(e){
+    if(e.target && e.target.closest && e.target.closest('#music-btn')) return;
+    if(musicOn) return;
+    bgm.play().then(()=>{
+        musicOn = true;
+        musicBtn.classList.add('playing');
+    }).catch(()=>{});
+}
+document.addEventListener('click', tryAutoPlay, {once: true});
+document.addEventListener('touchstart', tryAutoPlay, {once: true});
+</script>
+</body>
+</html>

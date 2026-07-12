@@ -549,18 +549,14 @@ function an(time){
     requestAnimationFrame(an);
 }
 
-// 预加载首张纹理避免纹理加载的白屏
+// 直接显示星空背景 + 渐进加载照片
+document.getElementById('loading').classList.add('hidden');
+an(performance.now());
+// 后台渐进加载所有照片
 loadTex(PHOTOS[0].src,0).then(()=>{
-    build().then(()=>{
-        document.getElementById('loading').classList.add('hidden');
-        an(performance.now());
-    });
+    return build();
 }).catch(()=>{
-    // 预加载失败仍然启动
-    build().then(()=>{
-        document.getElementById('loading').classList.add('hidden');
-        an(performance.now());
-    });
+    return build();
 });
 
 // ===== 背景音乐控制 =====

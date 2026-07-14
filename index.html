@@ -74,7 +74,14 @@ canvas{display:block}
 </head>
 <body>
 
-<div id="loading"><h1>✦</h1><div class="dot"></div></div>
+<div id="loading"><h1>✦</h1><div class="dot"></div>
+<div id="load-error" style="display:none;position:absolute;bottom:80px;left:50%;transform:translateX(-50%);color:rgba(255,150,150,.6);font-size:.75rem;letter-spacing:2px;text-align:center;line-height:1.8;max-width:320px">
+  ⚠️ WebGL 不可用，需要用本地服务器打开。<br>
+  <span style="font-size:.65rem;opacity:.6">➊ 双击 <b>start.bat</b> 自动启动服务器<br>
+  ➋ 或手动在文件夹地址栏输 cmd，执行：<br>
+  python -m http.server 8080<br>
+  然后浏览器访问 http://localhost:8080</span>
+</div></div>
 
 <div id="ui">
 <div class="t">✦ 我们的600天</div>
@@ -161,7 +168,14 @@ S.background = new THREE.Color(0x06080f);
 const C = new THREE.PerspectiveCamera(50,innerWidth/innerHeight,.1,200);
 C.position.set(0,.5,16);
 
-const R = new THREE.WebGLRenderer({antialias:true,alpha:true});
+let R;
+try {
+    R = new THREE.WebGLRenderer({antialias:true,alpha:true});
+} catch(e) {
+    document.getElementById('load-error').style.display = 'block';
+    document.getElementById('loading').querySelector('.dot').style.display = 'none';
+    throw e;
+}
 R.setSize(innerWidth,innerHeight);
 R.setPixelRatio(Math.min(devicePixelRatio,1.5));
 R.shadowMap.enabled = false;

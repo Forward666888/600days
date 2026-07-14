@@ -325,7 +325,6 @@ for(let i=0;i<4;i++)spawnShootingStar();
 })();
 
 const G=[],T=[],LD=new THREE.TextureLoader();
-LD.crossOrigin = void 0; // 修复 file:// 协议下图片因 crossOrigin=anonymous 无法加载的问题
 
 // ===== 全局缓动系统 =====
 const tweens=[];
@@ -410,27 +409,21 @@ async function build(){
     document.getElementById('count').textContent=n+' PHS';
     const lp = document.getElementById('load-progress');
 
-    // 优先加载前 12 张
+    // 优先加载前 12 张，让用户马上能看到照片墙
     const firstBatch = await Promise.all(PHOTOS.slice(0,12).map((p,i)=>loadPhoto(p,i)));
     placePhotos(firstBatch,0);
     lp.textContent = '✦ 加载照片 ' + firstBatch.length + '/' + n;
 
-    // 首批照片到位后显示星空和照片墙，隐藏加载屏
-    document.getElementById('loading').classList.add('hidden');
-
-    // 并发加载剩余照片（每次 4 张，无延迟）
+    // 后台渐进加载剩余照片，每次 4 张，间隔 300ms
     let loaded = firstBatch.length;
-    const allRemaining = [];
     for(let i=12;i<PHOTOS.length;i+=4){
-        allRemaining.push(Promise.all(PHOTOS.slice(i,Math.min(i+4,PHOTOS.length)).map((p,j)=>loadPhoto(p,i+j))));
-    }
-    const batches = await Promise.all(allRemaining.map(batch=>batch));
-    batches.forEach((batch,i)=>{
-        placePhotos(batch,12+i*4);
-        loaded = Math.min(loaded + batch.length, n);
+        await new Promise(r=>setTimeout(r,300));
+        const batch=await Promise.all(PHOTOS.slice(i,i+4).map((p,j)=>loadPhoto(p,i+j)));
+        placePhotos(batch,i);
+        loaded += batch.length;
         lp.textContent = '✦ 加载照片 ' + loaded + '/' + n;
-    });
-    setTimeout(()=>lp.classList.add('done'),1000);
+    }
+    setTimeout(()=>lp.classList.add('done'),1500);
 }
 
 function placePhotos(items,startIdx){
@@ -666,16 +659,15 @@ function an(time){
     requestAnimationFrame(an);
 }
 
-// 先启动动画（星空背景）
+// 直接显示星空背景 + 渐进加载照片
+document.getElementById('loading').classList.add('hidden');
 an(performance.now());
-// 后台加载照片 — 设定超时避免 TextureLoader 在某些浏览器下卡住
-let _loaded = false;
-function loadFirstThenBuild(){
-    const timeout = setTimeout(()=>{ if(!_loaded){_loaded=true;build()} }, 3000);
-    loadTex(PHOTOS[0].src,0).then(()=>{ clearTimeout(timeout); if(!_loaded){_loaded=true;build()} })
-    .catch(()=>{ clearTimeout(timeout); if(!_loaded){_loaded=true;build()} });
-}
-loadFirstThenBuild();
+// 后台渐进加载所有照片
+loadTex(PHOTOS[0].src,0).then(()=>{
+    return build();
+}).catch(()=>{
+    return build();
+});
 
 // ===== 背景音乐控制 =====
 let musicOn = false;

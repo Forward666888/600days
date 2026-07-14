@@ -6,7 +6,7 @@
 <title>✦ 我们的600天</title>
 <style>
 *{margin:0;padding:0;box-sizing:border-box}
-body{overflow:hidden;background:#06080f;font-family:'PingFang SC','Microsoft YaHei',sans-serif;user-select:none}
+body{overflow:hidden;background:#06080f;font-family:'PingFang SC','Microsoft YaHei',sans-serif;user-select:none;-webkit-touch-callout:none}
 canvas{display:block}
 
 #loading{position:fixed;inset:0;z-index:100;display:flex;flex-direction:column;align-items:center;justify-content:center;background:#06080f;transition:opacity 1s}
@@ -28,7 +28,7 @@ canvas{display:block}
 #load-progress.done{opacity:0}
 
 /* ===== 音乐控制 ===== */
-#music-btn{position:fixed;right:24px;bottom:24px;z-index:20;width:44px;height:44px;border-radius:50%;border:1.5px solid rgba(255,255,255,.15);background:rgba(6,8,15,.6);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);color:rgba(255,255,255,.35);font-size:18px;cursor:pointer;transition:all .4s;display:flex;align-items:center;justify-content:center;pointer-events:auto}
+#music-btn{position:fixed;right:24px;bottom:24px;z-index:20;width:44px;height:44px;border-radius:50%;border:1.5px solid rgba(255,255,255,.15);background:rgba(6,8,15,.6);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);color:rgba(255,255,255,.35);font-size:18px;cursor:pointer;transition:all .4s;display:flex;align-items:center;justify-content:center;pointer-events:auto;will-change:transform}
 #music-btn:hover{border-color:rgba(255,255,255,.3);color:rgba(255,255,255,.6);transform:scale(1.08)}
 #music-btn.playing{color:rgba(180,200,255,.7);border-color:rgba(180,200,255,.3);box-shadow:0 0 18px rgba(100,150,255,.15)}
 #music-btn .spin{animation:musicSpin 3s linear infinite}
@@ -37,11 +37,17 @@ canvas{display:block}
 #music-btn.playing .note-icon{animation:musicPulse 2s ease-in-out infinite;display:inline-block}
 
 /* ===== 拍立得查看器 ===== */
-#view{position:fixed;inset:0;z-index:50;display:none;align-items:center;justify-content:center;background:rgba(6,8,15,.88);backdrop-filter:blur(60px);-webkit-backdrop-filter:blur(60px);cursor:pointer}
+#view{position:fixed;inset:0;z-index:50;display:none;align-items:center;justify-content:center;background:rgba(6,8,15,.88);backdrop-filter:blur(60px);-webkit-backdrop-filter:blur(60px);cursor:pointer;will-change:opacity}
 #view.show{display:flex}
 #view .polaroid{position:relative;background:#fff;padding:18px 18px 48px 18px;border-radius:4px;box-shadow:0 24px 80px rgba(0,0,0,.7),0 4px 20px rgba(0,0,0,.3);animation:rise .5s cubic-bezier(.22,1,.36,1);cursor:default;max-width:88vw;max-height:92vh;display:flex;flex-direction:column;align-items:center}
-#view .polaroid-img-wrap{flex-shrink:1;min-height:0;display:flex;align-items:center;justify-content:center;width:100%}
+#view .polaroid-img-wrap{flex-shrink:1;min-height:0;display:flex;align-items:center;justify-content:center;width:100%;position:relative}
 #view .polaroid-img-wrap img{display:block;max-width:76vw;max-height:68vh;width:auto;height:auto;object-fit:contain;background:#e8e8e8}
+/* 查看器加载动画 */
+#view .polaroid-loader{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;background:#e8e8e8;transition:opacity .4s;z-index:2}
+#view .polaroid-loader.hidden{opacity:0;pointer-events:none}
+#view .polaroid-loader .sp{width:28px;height:28px;border:2px solid #ddd;border-top-color:#8899ff;border-radius:50%;animation:loadSpin .8s linear infinite}
+@keyframes loadSpin{to{transform:rotate(360deg)}}
+
 #view .polaroid-cap{flex-shrink:0;width:100%;min-height:36px;display:flex;align-items:center;justify-content:center;padding:10px 10px 0;font-size:1rem;letter-spacing:3px;font-weight:300;color:#555;text-align:center;line-height:1.5;font-family:'KaiTi','STKaiti','楷体','PingFang SC','Microsoft YaHei',serif}
 #view .x{position:absolute;top:-14px;right:-14px;width:36px;height:36px;border:2px solid rgba(255,255,255,.3);border-radius:50%;background:rgba(0,0,0,.5);color:rgba(255,255,255,.7);font-size:16px;cursor:pointer;transition:all .3s;display:flex;align-items:center;justify-content:center;z-index:5;backdrop-filter:blur(8px)}
 #view .x:hover{background:rgba(255,80,80,.7);border-color:rgba(255,255,255,.6);color:#fff;transform:rotate(90deg)}
@@ -92,6 +98,7 @@ canvas{display:block}
 <div class="polaroid" onclick="event.stopPropagation()">
 <button class="x" onclick="cView()">✕</button>
 <div class="polaroid-img-wrap">
+<div class="polaroid-loader" id="ploader"><div class="sp"></div></div>
 <img id="vi" src="" alt=""/>
 </div>
 <div class="polaroid-cap" id="vc"></div>
@@ -160,7 +167,7 @@ R.setPixelRatio(Math.min(devicePixelRatio,1.5));
 R.shadowMap.enabled = false;
 R.toneMapping = THREE.ACESFilmicToneMapping;
 R.toneMappingExposure = 0.9;
-R.outputEncoding = THREE.sRGBEncoding;
+R.colorSpace = THREE.SRGBColorSpace;
 document.body.prepend(R.domElement);
 
 S.fog = new THREE.FogExp2(0x06080f, .004);
@@ -319,12 +326,32 @@ for(let i=0;i<4;i++)spawnShootingStar();
 
 const G=[],T=[],LD=new THREE.TextureLoader();
 
-// 加载纹理 — 使用 Three.js 标准 TextureLoader（HTTP 服务器上无 CORS 问题）
+// ===== 全局缓动系统 =====
+const tweens=[];
+function addTween(obj,prop,target,dur=200){
+    const s=obj[prop];
+    const st=performance.now();
+    for(let i=tweens.length-1;i>=0;i--){
+        if(tweens[i].obj===obj&&tweens[i].prop===prop)tweens.splice(i,1);
+    }
+    tweens.push({obj,prop,start:s,target,startTime:st,dur});
+}
+function updateTweens(now){
+    for(let i=tweens.length-1;i>=0;i--){
+        const tw=tweens[i];
+        let t=(now-tw.startTime)/tw.dur;
+        if(t>=1){t=1;tweens.splice(i,1)}
+        const e=1-Math.pow(1-t,3); // cubic-out
+        tw.obj[tw.prop]=tw.start+(tw.target-tw.start)*e;
+    }
+}
+
+// 加载纹理
 function loadTex(url,i){
     return new Promise((res,rej)=>{
         LD.load(url,
             tex=>{
-                tex.encoding=THREE.sRGBEncoding;
+                tex.colorSpace=THREE.SRGBColorSpace;
                 console.log('✓ tex loaded:',i,url.slice(0,30));
                 res(tex);
             },
@@ -336,19 +363,22 @@ function loadTex(url,i){
 
 function makeCard(w,h){
     const g=new THREE.Group();
-    const cm=new THREE.MeshStandardMaterial({color:0x1a1a2e,roughness:.2,metalness:.1,emissive:0x4455aa,emissiveIntensity:.25});
+    g.userData._fade=0;
+    const cm=new THREE.MeshStandardMaterial({color:0x1a1a2e,roughness:.2,metalness:.1,emissive:0x4455aa,emissiveIntensity:.25,transparent:true,opacity:0});
     const bg=new THREE.Mesh(new THREE.PlaneGeometry(w+.2,h+.2),cm);
     bg.position.z=-.008;g.add(bg);
-    const sm=new THREE.MeshBasicMaterial({color:0x8899ff,transparent:true,opacity:.06,depthWrite:false});
+    const sm=new THREE.MeshBasicMaterial({color:0x8899ff,transparent:true,opacity:0,depthWrite:false});
     const sh=new THREE.Mesh(new THREE.PlaneGeometry(w+.6,h+.4),sm);
     sh.position.set(0,-.08,-.15);g.add(sh);
+    g.userData.bgMat=cm;
+    g.userData.shMat=sm;
     return g;
 }
 
 function loadPhoto(data,i){
     return new Promise(res=>{
         loadTex(data.src,i).then(tex=>{
-            tex.encoding=THREE.sRGBEncoding;
+            tex.colorSpace=THREE.SRGBColorSpace;
             const a=tex.image.width/tex.image.height;
             let w,h;
             if(a>=1){w=1.5;h=w/a}else{h=1.2;w=h*a}
@@ -358,6 +388,7 @@ function loadPhoto(data,i){
             card.add(mesh);
             card.userData={i,caption:data.caption,src:data.src,file:data.file,mesh,isHovered:false};
             T.push(card);G.push(card);
+            setTimeout(()=>addTween(card.userData,'_fade',1,500),50);
             res(card);
         },()=>{
             const w=1.5,h=1.125;
@@ -367,6 +398,7 @@ function loadPhoto(data,i){
             card.add(mesh);
             card.userData={i,caption:data.caption,src:data.src,file:data.file,mesh,isHovered:false};
             T.push(card);G.push(card);
+            setTimeout(()=>addTween(card.userData,'_fade',1,500),50);
             res(card);
         });
     });
@@ -418,47 +450,79 @@ function placePhotos(items,startIdx){
 }
 
 // Interaction
-let drag=false,px=0,py=0;
-let auto=true,autoT=null;
+let drag=false,px=0,py=0,startX=0,startY=0,dragDist=0;
+let auto=true,autoT=null,autoSpeed=0;
 let th=0.3,ph=0.04,dist=16;
 const tg=new THREE.Vector3(0,0,0);
 const ray=new THREE.Raycaster();
 const ms=new THREE.Vector2();
 let ho=null;
 const cv=R.domElement;
+const TAP_THRESHOLD=8;
 
-cv.addEventListener('mousedown',e=>{drag=true;px=e.clientX;py=e.clientY;sAuto()});
+cv.addEventListener('mousedown',e=>{
+    drag=true;px=e.clientX;py=e.clientY;
+    startX=e.clientX;startY=e.clientY;dragDist=0;
+    sAuto()
+});
 window.addEventListener('mousemove',e=>{
-    if(drag){th-=(e.clientX-px)*.006;ph=Math.max(-.45,Math.min(.45,ph+(e.clientY-py)*.004));px=e.clientX;py=e.clientY}
+    if(drag){
+        const dx=e.clientX-px,dy=e.clientY-py;
+        dragDist+=Math.abs(dx)+Math.abs(dy);
+        th-=dx*.006;ph=Math.max(-.45,Math.min(.45,ph+dy*.004));
+        px=e.clientX;py=e.clientY
+    }
     ms.x=(e.clientX/innerWidth)*2-1;ms.y=-(e.clientY/innerHeight)*2+1;
     if(!drag)hov();
 });
 window.addEventListener('mouseup',()=>{drag=false});
 
 cv.addEventListener('click',e=>{
-    if(drag)return;
+    if(dragDist>TAP_THRESHOLD)return;
     ms.x=(e.clientX/innerWidth)*2-1;ms.y=-(e.clientY/innerHeight)*2+1;
     ray.setFromCamera(ms,C);
     const h=ray.intersectObjects(T,true);
     if(h.length){let o=h[0].object;while(o.parent&&!T.includes(o))o=o.parent;if(T.includes(o)){if(ho&&ho!==o)hovSet(ho,false);openV(o.userData.file||o.userData.src,o.userData.caption)}}
 });
 
-cv.addEventListener('touchstart',e=>{if(e.touches.length===1){drag=true;px=e.touches[0].clientX;py=e.touches[0].clientY;sAuto();touchTap(e)}},{passive:true});
-cv.addEventListener('touchmove',e=>{if(e.touches.length===1&&drag){th-=(e.touches[0].clientX-px)*.006;ph=Math.max(-.45,Math.min(.45,ph+(e.touches[0].clientY-py)*.004));px=e.touches[0].clientX;py=e.touches[0].clientY}},{passive:true});
-cv.addEventListener('touchend',()=>{drag=false},{passive:true});
+cv.addEventListener('touchstart',e=>{
+    if(e.touches.length===1){
+        drag=true;
+        px=e.touches[0].clientX;py=e.touches[0].clientY;
+        startX=e.touches[0].clientX;startY=e.touches[0].clientY;dragDist=0;
+        sAuto();
+    }
+},{passive:true});
+cv.addEventListener('touchmove',e=>{
+    if(e.touches.length===1&&drag){
+        const dx=e.touches[0].clientX-px,dy=e.touches[0].clientY-py;
+        dragDist+=Math.abs(dx)+Math.abs(dy);
+        th-=dx*.006;ph=Math.max(-.45,Math.min(.45,ph+dy*.004));
+        px=e.touches[0].clientX;py=e.touches[0].clientY
+    }
+},{passive:true});
+cv.addEventListener('touchend',e=>{
+    if(drag&&dragDist<TAP_THRESHOLD&&e.changedTouches.length===1){
+        const tx=(e.changedTouches[0].clientX/innerWidth)*2-1;
+        const ty=-(e.changedTouches[0].clientY/innerHeight)*2+1;
+        ray.setFromCamera(new THREE.Vector2(tx,ty),C);
+        const h=ray.intersectObjects(T,true);
+        if(h.length){let o=h[0].object;while(o.parent&&!T.includes(o))o=o.parent;if(T.includes(o)){if(ho&&ho!==o)hovSet(ho,false);openV(o.userData.file||o.userData.src,o.userData.caption)}}
+    }
+    drag=false;
+},{passive:true});
 
 cv.addEventListener('wheel',e=>{e.preventDefault();dist=Math.max(6,Math.min(28,dist+e.deltaY*.005));sAuto()},{passive:false});
 
-function sAuto(){if(auto){auto=false;clearTimeout(autoT);autoT=setTimeout(()=>{auto=true},4000)}}
-
-// 手机端触摸照片时提供视觉反馈
-function touchTap(e){
-    if(e.touches.length!==1)return;
-    const tx=(e.touches[0].clientX/innerWidth)*2-1;
-    const ty=-(e.touches[0].clientY/innerHeight)*2+1;
-    ray.setFromCamera(new THREE.Vector2(tx,ty),C);
-    const h=ray.intersectObjects(T,true);
-    if(h.length){let o=h[0].object;while(o.parent&&!T.includes(o))o=o.parent;if(T.includes(o)){if(ho&&ho!==o)hovSet(ho,false);hovSet(o,true);ho=o}}
+function sAuto(){
+    if(auto){auto=false;}
+    clearTimeout(autoT);
+    autoT=setTimeout(()=>{auto=true},4000);
+}
+function updateAutoSpeed(){
+    const target=auto?0.0015:0;
+    autoSpeed+=(target-autoSpeed)*0.035;
+    if(Math.abs(autoSpeed-target)<1e-6)autoSpeed=target;
 }
 
 function hov(){
@@ -472,28 +536,48 @@ function hov(){
 function hovSet(g,a){
     g.userData.isHovered=a;
     const ts=a?1.12:1;
-    const st=performance.now(),ss=g.scale.x||1;
-    (function an(n){const t=Math.min((n-st)/200,1),e=1-Math.pow(1-t,3),s=ss+(ts-ss)*e;g.scale.set(s,s,s);if(t<1)requestAnimationFrame(an)})(st);
+    addTween(g.scale,'x',ts,200);
+    addTween(g.scale,'y',ts,200);
+    addTween(g.scale,'z',ts,200);
     g.children.forEach(c=>{
-        if(c.isMesh&&c.material&&c.material.emissiveIntensity!==undefined)c.material.emissiveIntensity=a?.3:.05;
-        if(c.isMesh&&c.material&&c.material.opacity!==undefined&&c.material.color&&c.material.color.getHex()===0x000005)c.material.opacity=a?.25:.1;
+        if(c.isMesh&&c.material&&c.material.emissiveIntensity!==undefined)c.material.emissiveIntensity=a?0.3:0.05;
     });
 }
 
 // ===== 拍立得查看器 =====
 function openV(s,c){
-    document.getElementById('vi').src=imgUrl(s);
+    const vi=document.getElementById('vi');
+    const pl=document.getElementById('ploader');
+    vi.src='';
+    pl.classList.remove('hidden');
     document.getElementById('vc').textContent=c||'✦';
     document.getElementById('view').classList.add('show');
-    // 关闭后复原触屏的缩放效果
     if(ho){hovSet(ho,false);ho=null}
+    vi.onload=()=>{pl.classList.add('hidden')};
+    vi.onerror=()=>{
+        pl.classList.add('hidden');
+        vi.style.objectFit='contain';
+        vi.src='data:image/svg+xml,'+encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="300" height="200" viewBox="0 0 300 200"><rect fill="#eee" width="300" height="200"/><text x="150" y="110" text-anchor="middle" fill="#999" font-size="18" font-family="sans-serif">图片加载失败</text></svg>');
+    };
+    vi.src=imgUrl(s);
 }
 function cView(){document.getElementById('view').classList.remove('show')}
-document.addEventListener('keydown',e=>{if(e.key==='Escape')cView()});
+// ===== 键盘导航 =====
+document.addEventListener('keydown',e=>{
+    if(e.key==='Escape'){cView();return}
+    if(document.getElementById('view').classList.contains('show'))return;
+    switch(e.key){
+        case 'ArrowLeft':th-=0.08;sAuto();break;
+        case 'ArrowRight':th+=0.08;sAuto();break;
+        case 'ArrowUp':case '+':dist=Math.max(6,dist-0.5);sAuto();break;
+        case 'ArrowDown':case '-':dist=Math.min(28,dist+0.5);sAuto();break;
+    }
+});
 window.addEventListener('resize',()=>{C.aspect=innerWidth/innerHeight;C.updateProjectionMatrix();R.setSize(innerWidth,innerHeight)});
 
 function upCam(){
-    if(auto)th+=.0015;
+    updateAutoSpeed();
+    th+=autoSpeed;
     const x=Math.sin(th)*Math.cos(ph)*dist;
     const y=Math.sin(ph)*dist+.1;
     const z=Math.cos(th)*Math.cos(ph)*dist;
@@ -559,10 +643,17 @@ function upPart(time){
     // 原光动画
     p.position.x=Math.sin(time*.00025)*3.5;
     p.position.z=Math.cos(time*.00025)*3.5;
+    // 卡片淡入更新
+    G.forEach(g=>{
+        const f=g.userData._fade||0;
+        if(g.userData.bgMat)g.userData.bgMat.opacity=f;
+        if(g.userData.shMat)g.userData.shMat.opacity=f*0.06;
+    });
 }
 
 function an(time){
     upPart(time);
+    updateTweens(time);
     upCam();
     R.render(S,C);
     requestAnimationFrame(an);
